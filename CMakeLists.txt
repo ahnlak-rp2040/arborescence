@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-set(NAME picovision-boilerplate)  # TODO: Change me!
+set(NAME arborescence)
 
 include(pimoroni_pico_import.cmake)
 include(pico_sdk_import.cmake)
@@ -32,7 +32,7 @@ include(drivers/sdcard/sdcard)
 
 # Add your source files
 add_executable(${NAME}
-    main.cpp # TODO: Add source files here!
+    main.cpp world.cpp
 )
 
 # TODO: Don't forget to link the libraries you need!

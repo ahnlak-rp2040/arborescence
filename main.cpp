@@ -1,38 +1,68 @@
-#include "pico/stdlib.h"
-#include <cstdio>
-#include <iterator>
-#include <sstream>
+/*
+ * main.cpp - part of Arborescence
+ *
+ * This is the entry point and main logic loop of the demo.
+ *
+ * Copyright (c) 2023 Pete Favelle <ahnlak@ahnlak.com>
+ * This file is licensed under the BSD 3-Clause License; see LICENSE for details.
+ */
 
+/* System header files. */
+
+
+/* Local header files. */
+
+#include "pico/stdlib.h"
 #include "drivers/dv_display/dv_display.hpp"
 #include "libraries/pico_graphics/pico_graphics_dv.hpp"
 
-#define FRAME_WIDTH 640
-#define FRAME_HEIGHT 480
+#include "arborescence.hpp"
+#include "world.hpp"
 
-using namespace pimoroni;
 
-DVDisplay display;
-PicoGraphics_PenDV_RGB555 graphics(FRAME_WIDTH, FRAME_HEIGHT, display);
+/* Functions. */
 
-Pen BLACK = graphics.create_pen(0, 0, 0);
-Pen WHITE = graphics.create_pen(255, 255, 255);
 
-int main() {
-    stdio_init_all();
-    printf("Hello World\n");
+/*
+ * main - the entry point to the program; this initialises the display,
+ *        and provides the main render / update logic.
+ */
 
-    printf("Init Video...\n");
-    display.preinit();
-    display.init(FRAME_WIDTH, FRAME_HEIGHT, DVDisplay::MODE_RGB555);
-    printf("Done!\n");
+int main()
+{
+  pimoroni::DVDisplay                  *lDisplay;
+  pimoroni::PicoGraphics_PenDV_RGB555  *lGraphics;
+  World                                *lWorld;
 
-    graphics.set_font("bitmap8");
+  /* Normal Pico initialisation. */
+  stdio_init_all();
 
-    while(true) {
-        graphics.set_pen(BLACK);
-        graphics.clear();
-        graphics.set_pen(WHITE);
-        graphics.text("Hello PicoVision Boilerplate!", Point(0, 0), FRAME_WIDTH);
-        display.flip();
-    }
+  /* Create the display, and the graphics driver. */
+  lDisplay = new pimoroni::DVDisplay();
+  lGraphics = new pimoroni::PicoGraphics_PenDV_RGB555( SCREEN_WIDTH, SCREEN_HEIGHT, *lDisplay );
+
+  /* Now initialise the display. */
+  lDisplay->preinit();
+  lDisplay->init( SCREEN_WIDTH, SCREEN_HEIGHT, pimoroni::DVDisplay::MODE_RGB555 );
+
+  /* And finally, we need a World to handle everything. */
+  lWorld = new World( lDisplay, lGraphics );
+
+  /* And enter into the display loop, forever! */
+  while(true)
+  {
+    /* We render first. */
+    lWorld->render();
+
+    /* Flip the display asynchronously. */
+    lDisplay->flip_async();
+
+    /* And we can update in parallel with that work. */
+    lWorld->update();
+
+    /* Last thing, wait for the flip to complete and keep us sync'd to VSYNC */
+    lDisplay->wait_for_flip();
+  }
 }
+
+/* End of file main.cpp */
