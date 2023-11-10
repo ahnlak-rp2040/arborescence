@@ -14,9 +14,18 @@
 
 #define SCREEN_WIDTH  720
 #define SCREEN_HEIGHT 480
+#define GROUND_HEIGHT 25
 
 
 /* Structures. */
+
+typedef struct
+{
+  float h;
+  float s;
+  float v;
+} hsv_t;
+
 
 /* Function prototypes. */
 

@@ -13,6 +13,8 @@
 #include "drivers/dv_display/dv_display.hpp"
 #include "libraries/pico_graphics/pico_graphics_dv.hpp"
 
+#include "arborescence.hpp"
+
 
 /* Class declaration. */
 
@@ -24,16 +26,24 @@ private:
   pimoroni::Pen                         mBlackPen;
   pimoroni::Pen                         mWhitePen;
 
-  int16_t       mTitleLength;
-  int16_t       mTitleOffset;
+  int_fast16_t  mTitleLength;
+  int_fast16_t  mTitleOffset;
   const char   *mTitleText = "ARBORESCENCE";
 
-public:
-        World( pimoroni::DVDisplay *, pimoroni::PicoGraphics_PenDV_RGB555 * );
-       ~World( void );
+  uint_fast16_t mDayOfYear;
 
-  void  update( void );
-  void  render( void );
+  hsv_t         mGroundFG, mGroundBG;
+  hsv_t         mSkyFG, mSkyBG;
+
+  const hsv_t  *ground_colour( void );
+  const hsv_t  *sky_colour( void );
+
+public:
+                World( pimoroni::DVDisplay *, pimoroni::PicoGraphics_PenDV_RGB555 * );
+               ~World( void );
+
+  void          update( void );
+  void          render( void );
 };
 
 /* End of file world.hpp */
