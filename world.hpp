@@ -14,6 +14,7 @@
 #include "libraries/pico_graphics/pico_graphics_dv.hpp"
 
 #include "arborescence.hpp"
+#include "tree.hpp"
 
 
 /* Class declaration. */
@@ -34,6 +35,11 @@ private:
 
   hsv_t         mGroundFG, mGroundBG;
   hsv_t         mSkyFG, mSkyBG;
+
+  bool          mRedrawSkyFG, mRedrawSkyBG;
+  bool          mRedrawForestFG, mRedrawForestBG;
+
+  Tree         *mForest[TREES_MAX];
 
   const hsv_t  *ground_colour( void );
   const hsv_t  *sky_colour( void );

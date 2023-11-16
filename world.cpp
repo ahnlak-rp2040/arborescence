@@ -13,10 +13,12 @@
 
 /* Local header files. */
 
+#include "pico/rand.h"
 #include "drivers/dv_display/dv_display.hpp"
 #include "libraries/pico_graphics/pico_graphics_dv.hpp"
 
 #include "arborescence.hpp"
+#include "tree.hpp"
 #include "world.hpp"
 
 
@@ -54,6 +56,16 @@ World::World( pimoroni::DVDisplay *pDisplay, pimoroni::PicoGraphics_PenDV_RGB555
   this->mGroundFG.h = this->mGroundFG.s = this->mGroundFG.v = 0.0f;
   this->mGroundBG.h = this->mGroundBG.s = this->mGroundBG.v = 0.0f;
 
+  /* Initialise our forest. */
+  for ( uint_fast8_t lIndex = 0; lIndex < TREES_MAX; lIndex++ )
+  {
+    this->mForest[lIndex] = nullptr;
+  }
+
+  /* And any other init stuff... */
+  this->mRedrawSkyFG = this->mRedrawForestFG = true;
+  this->mRedrawSkyBG = this->mRedrawForestBG = true;
+
   /* All done. */
   return;
 }
@@ -65,6 +77,15 @@ World::World( pimoroni::DVDisplay *pDisplay, pimoroni::PicoGraphics_PenDV_RGB555
 
 World::~World( void )
 {
+  /* Free up any trees. */
+  for ( uint_fast8_t lIndex = 0; lIndex < TREES_MAX; lIndex++ )
+  {
+    if ( this->mForest[lIndex] != nullptr )
+    {
+      delete this->mForest[lIndex];
+      this->mForest[lIndex] = nullptr;
+    }
+  }
 
   /* All done. */
   return;
@@ -100,7 +121,7 @@ const hsv_t *World::sky_colour( void )
   static hsv_t  l_colour;
 
   /* Work out the right kind of colour, based on the time of year. */
-  l_colour.h = 0.63f;
+  l_colour.h = 0.63f + (sin(this->mDayOfYear*3.14159f/180.0f)/10.0f);
   l_colour.s = 0.65f;
   l_colour.v = 0.35f;
 
@@ -133,11 +154,51 @@ void World::update( void )
   memcpy( &this->mSkyBG, &this->mSkyFG, sizeof( hsv_t ) );
   memcpy( &this->mSkyFG, &lTempColour, sizeof( hsv_t ) );
 
+  /* Also, bring forward the rear redraw flags. */
+  this->mRedrawSkyFG = this->mRedrawSkyBG;
+  this->mRedrawForestFG = this->mRedrawForestBG;
+  this->mRedrawSkyBG = this->mRedrawForestBG = false;
+
   /* Scroll the title across the top of the screen. */
   this->mTitleOffset--;
   if ( ( this->mTitleOffset + this->mTitleLength ) < 0 )
   {
     this->mTitleOffset = SCREEN_WIDTH;
+  }
+
+  /* Update any trees we have; this is ~1 per second */
+  if ( this->mDayOfYear % 60 == 0 )
+  {
+    for ( uint_fast8_t lIndex = 0; lIndex < TREES_MAX; lIndex++ )
+    {
+      if ( this->mForest[lIndex] != nullptr )
+      {
+        this->mForest[lIndex]->update();
+        if ( this->mForest[lIndex]->is_dead() )
+        {
+          delete this->mForest[lIndex];
+          this->mForest[lIndex] = nullptr;
+          this->mRedrawSkyFG = this->mRedrawSkyBG = true;
+        }
+        this->mRedrawForestFG = this->mRedrawForestBG = true;
+      }
+    }
+
+    /* Occasionally spawn a new tree, if we have a free spot. */
+    if ( get_rand_32() % 30 == 0 )
+    {
+      /* See if there's a space in the forest. */
+      for ( uint_fast8_t lIndex = 0; lIndex < TREES_MAX; lIndex++ )
+      {
+        if ( this->mForest[lIndex] == nullptr )
+        {
+          /* Found one, so grow a tree and exit. */
+          this->mForest[lIndex] = new Tree( this->mGraphics );
+          this->mRedrawForestFG = this->mRedrawForestBG = true;
+          break;
+        }
+      }
+    }
   }
 
   /* All done. */
@@ -155,58 +216,71 @@ void World::update( void )
 void World::render( void )
 {
   const hsv_t *lCurrentColour;
+  float        lOffset;
 
   /* Handle the ground first; see what colour it should be. */
   lCurrentColour = this->ground_colour();
 
   /* And if the front buffer isn't using this colour, update it. */
-  if ( ( lCurrentColour->h != this->mGroundFG.h ) || 
+  if ( ( this->mRedrawSkyFG ) ||
+       ( lCurrentColour->h != this->mGroundFG.h ) || 
        ( lCurrentColour->s != this->mGroundFG.s ) || 
        ( lCurrentColour->v != this->mGroundFG.v ) )
   {
     /* Redraw the ground in this colour. */
-    this->mGraphics->set_pen( 
-      pimoroni::RGB::from_hsv(
-        lCurrentColour->h,
-        lCurrentColour->s,
-        lCurrentColour->v
-      ).to_rgb555()
-    );
-    this->mGraphics->rectangle(
-      pimoroni::Rect( 0, SCREEN_HEIGHT-GROUND_HEIGHT, SCREEN_WIDTH, GROUND_HEIGHT )
-    );
+    lOffset = 0.0f;
+    for ( uint_fast16_t lRow = SCREEN_HEIGHT-GROUND_HEIGHT-GROUND_HEIGHT; lRow < SCREEN_HEIGHT; lRow++ )
+    {
+      this->mGraphics->set_pen( 
+        pimoroni::RGB::from_hsv(
+          lCurrentColour->h,
+          lCurrentColour->s,
+          lCurrentColour->v - lOffset
+        ).to_rgb555()
+      );
+      this->mGraphics->line( pimoroni::Point( 0, lRow ), pimoroni::Point( SCREEN_WIDTH, lRow ) );
+      lOffset += 0.003f;
+    }
 
     /* And remember that it's changed. */
     memcpy( &this->mGroundFG, lCurrentColour, sizeof( hsv_t ) );
+    this->mRedrawForestFG = this->mRedrawForestBG = true;
   }
 
   /* Now do the same for the sky. */
   lCurrentColour = this->sky_colour();
 
   /* And if the front buffer isn't using this colour, update it. */
-  if ( ( lCurrentColour->h != this->mSkyFG.h ) || 
+  if ( ( this->mRedrawSkyFG ) ||
+       ( lCurrentColour->h != this->mSkyFG.h ) || 
        ( lCurrentColour->s != this->mSkyFG.s ) || 
        ( lCurrentColour->v != this->mSkyFG.v ) )
   {
     /* Redraw the ground in this colour. */
-    this->mGraphics->set_pen( 
-      pimoroni::RGB::from_hsv(
-        lCurrentColour->h,
-        lCurrentColour->s,
-        lCurrentColour->v
-      ).to_rgb555()
-    );
-    this->mGraphics->rectangle(
-      pimoroni::Rect( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT-GROUND_HEIGHT )
-    );
+    lOffset = 0.0f;
+    for ( uint_fast16_t lRow = 0; lRow < SCREEN_HEIGHT-GROUND_HEIGHT-GROUND_HEIGHT; lRow++ )
+    {
+      this->mGraphics->set_pen( 
+        pimoroni::RGB::from_hsv(
+          lCurrentColour->h,
+          lCurrentColour->s - lOffset,
+          lCurrentColour->v
+        ).to_rgb555()
+      );
+      this->mGraphics->line( pimoroni::Point( 0, lRow ), pimoroni::Point( SCREEN_WIDTH, lRow ) );
+      lOffset += 0.0005f;
+    }
 
     /* And remember that it's changed. */
     memcpy( &this->mSkyFG, lCurrentColour, sizeof( hsv_t ) );
+    this->mRedrawForestFG = this->mRedrawForestBG = true;
+    this->mRedrawSkyFG = false;
   }
 
-  /* Now the title bar, which runs along the top of the screen. */
-
-  /* First we need to blank what's there. */
+  /*
+   * Now the title bar, which runs along the top of the screen - first we
+   * need to blank what's there.
+   */
   this->mGraphics->set_pen( 
     pimoroni::RGB::from_hsv( this->mSkyFG.h, this->mSkyFG.s, this->mSkyFG.v ).to_rgb555()
   );
@@ -221,6 +295,19 @@ void World::render( void )
     pimoroni::Point( this->mTitleOffset, 1 ),
     SCREEN_WIDTH
   );
+
+  /* Trees, can be re-drawn in situ if we need to. */
+  if ( this->mRedrawForestFG )
+  {
+    for ( uint_fast8_t lIndex = 0; lIndex < TREES_MAX; lIndex++ )
+    {
+      if ( this->mForest[lIndex] != nullptr )
+      {
+        this->mForest[lIndex]->render( this->mDayOfYear );
+      }
+    }
+    this->mRedrawForestFG = false;
+  }
 
   /* All done. */
   return;

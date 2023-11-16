@@ -32,12 +32,13 @@ include(drivers/sdcard/sdcard)
 
 # Add your source files
 add_executable(${NAME}
-    main.cpp world.cpp
+    main.cpp tree.cpp world.cpp
 )
 
 # TODO: Don't forget to link the libraries you need!
 target_link_libraries(${NAME}
-pico_stdlib
+    pico_rand
+    pico_stdlib
     picovision
     pico_graphics
     jpegdec

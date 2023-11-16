@@ -14,8 +14,12 @@
 
 #define SCREEN_WIDTH  720
 #define SCREEN_HEIGHT 480
-#define GROUND_HEIGHT 25
+#define GROUND_HEIGHT 32
+#define BRANCHES_MAX  3
+#define TREES_MAX     8
 
+#define AGE_GROWTH    20
+#define AGE_DEATH     80
 
 /* Structures. */
 

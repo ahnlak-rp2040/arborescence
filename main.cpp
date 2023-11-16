@@ -9,9 +9,13 @@
 
 /* System header files. */
 
+#include <stdlib.h>
+#include <time.h>
+
 
 /* Local header files. */
 
+#include "pico/rand.h"
 #include "pico/stdlib.h"
 #include "drivers/dv_display/dv_display.hpp"
 #include "libraries/pico_graphics/pico_graphics_dv.hpp"
@@ -44,6 +48,9 @@ int main()
   /* Now initialise the display. */
   lDisplay->preinit();
   lDisplay->init( SCREEN_WIDTH, SCREEN_HEIGHT, pimoroni::DVDisplay::MODE_RGB555 );
+
+  /* Initialise the random number generator (which ... will only be a bit random) */
+  srand( get_rand_32() );
 
   /* And finally, we need a World to handle everything. */
   lWorld = new World( lDisplay, lGraphics );
