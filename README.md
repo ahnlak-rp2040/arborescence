@@ -21,3 +21,6 @@ which is cannibalised from a script doing a similar job for the PicoSystem.
 
 This project follows the Boilerplate lead, and is released under the BSD 3-Clause
 license - see LICENSE for details.
+
+_NOTE: Until [this PR](https://github.com/pimoroni/picovision/pull/92) makes it
+into a release, automatic builds will explode_
