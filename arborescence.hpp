@@ -24,6 +24,8 @@
 
 #define SPRITE_SUN    0
 #define SPRITE_MOON   1
+#define SPRITE_CLOUDL 2
+#define SPRITE_CLOUDR 3
 
 
 /* Structures. */

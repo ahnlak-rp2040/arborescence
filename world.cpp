@@ -20,6 +20,8 @@
 #include "arborescence.hpp"
 #include "sprite_sun.hpp"
 #include "sprite_moon.hpp"
+#include "sprite_cloudl.hpp"
+#include "sprite_cloudr.hpp"
 #include "tree.hpp"
 #include "world.hpp"
 
@@ -61,9 +63,13 @@ World::World( pimoroni::DVDisplay *pDisplay, pimoroni::PicoGraphics_PenDV_RGB555
   /* Load up our sprite data; need to do it in both banks. */
   this->mDisplay->define_sprite( SPRITE_SUN, sprite_sun_width, sprite_sun_height, sprite_sun_data );
   this->mDisplay->define_sprite( SPRITE_MOON, sprite_moon_width, sprite_moon_height, sprite_moon_data );
+  this->mDisplay->define_sprite( SPRITE_CLOUDL, sprite_cloudl_width, sprite_cloudl_height, sprite_cloudl_data );
+  this->mDisplay->define_sprite( SPRITE_CLOUDR, sprite_cloudr_width, sprite_cloudr_height, sprite_cloudr_data );
   this->mDisplay->flip();
   this->mDisplay->define_sprite( SPRITE_SUN, sprite_sun_width, sprite_sun_height, sprite_sun_data );
   this->mDisplay->define_sprite( SPRITE_MOON, sprite_moon_width, sprite_moon_height, sprite_moon_data );
+  this->mDisplay->define_sprite( SPRITE_CLOUDL, sprite_cloudl_width, sprite_cloudl_height, sprite_cloudl_data );
+  this->mDisplay->define_sprite( SPRITE_CLOUDR, sprite_cloudr_width, sprite_cloudr_height, sprite_cloudr_data );
 
   /* Initialise our forest. */
   for ( uint_fast8_t lIndex = 0; lIndex < TREES_MAX; lIndex++ )
@@ -74,6 +80,7 @@ World::World( pimoroni::DVDisplay *pDisplay, pimoroni::PicoGraphics_PenDV_RGB555
   /* And any other init stuff... */
   this->mRedrawSkyFG = this->mRedrawForestFG = true;
   this->mRedrawSkyBG = this->mRedrawForestBG = true;
+  this->mCloudActive = false;
 
   /* All done. */
   return;
@@ -211,12 +218,51 @@ void World::update( void )
   }
 
   /* Figure out where the sun should be. */
-  this->mSunLocation.x = ( SCREEN_WIDTH / 2 ) - ( cos(this->mTimeOfDay*3.14159f/1800.0f) * SCREEN_WIDTH / 2 );
+  this->mSunLocation.x = ( SCREEN_WIDTH / 2 ) - ( cos(this->mTimeOfDay*3.14159f/1800.0f) * ( ( SCREEN_WIDTH / 2 ) - 16 ) ) - 16;
   this->mSunLocation.y = GROUND_LEVEL - ( sin(this->mTimeOfDay*3.14159f/1800.0f) * GROUND_LEVEL );
 
   /* And the moon (which basically follows the sun) */
-  this->mMoonLocation.x = ( SCREEN_WIDTH / 2 ) - ( cos(this->mTimeOfDay*3.14159f/1800.0f) * SCREEN_WIDTH / -2 );
+  this->mMoonLocation.x = ( SCREEN_WIDTH / 2 ) - ( cos(this->mTimeOfDay*3.14159f/1800.0f) * ( ( SCREEN_WIDTH / 2 ) - 16 ) * -1 ) - 16;
   this->mMoonLocation.y = GROUND_LEVEL - ( sin(this->mTimeOfDay*3.14159f/1800.0f) * GROUND_LEVEL * -1 );
+
+  /* If the cloud is active, move it. */
+  if ( this->mCloudActive )
+  {
+    /* Randomly drift up and down, but not too much... */
+    if ( get_rand_32() % 2 == 0 )
+    {
+      this->mCloudLocation.y -= get_rand_32() % 2;
+      if ( this->mCloudLocation.y < 0 )
+      {
+        this->mCloudLocation.y = 0;
+      }
+    }
+    else
+    {
+      this->mCloudLocation.y += get_rand_32() % 2;
+      if ( this->mCloudLocation.y > SCREEN_HEIGHT/2 )
+      {
+        this->mCloudLocation.y = SCREEN_HEIGHT/2;
+      }
+    }
+
+    /* Drift to the right, until we drop off the end. */
+    this->mCloudLocation.x += 2;
+    if ( this->mCloudLocation.x > SCREEN_WIDTH )
+    {
+      this->mCloudActive = false;
+    }
+  }
+  else
+  {
+    /* If it's not active, a lowish chance to activate it. */
+    if ( get_rand_32() % 300 == 0 )
+    {
+      this->mCloudActive = true;
+      this->mCloudLocation.x = -64;
+      this->mCloudLocation.y = get_rand_32() % ( SCREEN_HEIGHT/2 );
+    }
+  }
 
   /* All done. */
   return;
@@ -329,6 +375,16 @@ void World::render( void )
   /* And put the sun and moon where it should be. */
   this->mDisplay->set_sprite( SPRITE_SUN, SPRITE_SUN, this->mSunLocation );  
   this->mDisplay->set_sprite( SPRITE_MOON, SPRITE_MOON, this->mMoonLocation );
+
+  /* And the clouds, if it's active. */
+  if ( this->mCloudActive )
+  {
+    this->mDisplay->set_sprite( SPRITE_CLOUDL, SPRITE_CLOUDL, this->mCloudLocation );
+    this->mDisplay->set_sprite(
+      SPRITE_CLOUDR, SPRITE_CLOUDR, 
+      this->mCloudLocation + pimoroni::Point( 32, 0 )
+    );
+  }
 
   /* All done. */
   return;

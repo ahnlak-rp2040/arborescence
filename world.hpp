@@ -29,6 +29,9 @@ private:
 
   pimoroni::Point                       mSunLocation, mMoonLocation;
 
+  pimoroni::Point                       mCloudLocation;
+  bool                                  mCloudActive;
+
   int_fast16_t  mTitleLength;
   int_fast16_t  mTitleOffset;
   const char   *mTitleText = "ARBORESCENCE";
