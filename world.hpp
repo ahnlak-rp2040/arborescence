@@ -27,11 +27,13 @@ private:
   pimoroni::Pen                         mBlackPen;
   pimoroni::Pen                         mWhitePen;
 
+  pimoroni::Point                       mSunLocation, mMoonLocation;
+
   int_fast16_t  mTitleLength;
   int_fast16_t  mTitleOffset;
   const char   *mTitleText = "ARBORESCENCE";
 
-  uint_fast16_t mDayOfYear;
+  uint_fast16_t mTimeOfDay;
 
   hsv_t         mGroundFG, mGroundBG;
   hsv_t         mSkyFG, mSkyBG;

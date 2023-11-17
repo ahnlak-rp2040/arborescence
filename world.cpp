@@ -18,6 +18,8 @@
 #include "libraries/pico_graphics/pico_graphics_dv.hpp"
 
 #include "arborescence.hpp"
+#include "sprite_sun.hpp"
+#include "sprite_moon.hpp"
 #include "tree.hpp"
 #include "world.hpp"
 
@@ -50,11 +52,18 @@ World::World( pimoroni::DVDisplay *pDisplay, pimoroni::PicoGraphics_PenDV_RGB555
   this->mTitleOffset = (SCREEN_WIDTH-this->mTitleLength) / 2;
 
   /* Initialise our colours and dates to something basic. */
-  this->mDayOfYear = 0;
+  this->mTimeOfDay = 0;
   this->mSkyFG.h = this->mSkyFG.s = this->mSkyFG.v = 0.0f;
   this->mSkyBG.h = this->mSkyBG.s = this->mSkyBG.v = 0.0f;
   this->mGroundFG.h = this->mGroundFG.s = this->mGroundFG.v = 0.0f;
   this->mGroundBG.h = this->mGroundBG.s = this->mGroundBG.v = 0.0f;
+
+  /* Load up our sprite data; need to do it in both banks. */
+  this->mDisplay->define_sprite( SPRITE_SUN, sprite_sun_width, sprite_sun_height, sprite_sun_data );
+  this->mDisplay->define_sprite( SPRITE_MOON, sprite_moon_width, sprite_moon_height, sprite_moon_data );
+  this->mDisplay->flip();
+  this->mDisplay->define_sprite( SPRITE_SUN, sprite_sun_width, sprite_sun_height, sprite_sun_data );
+  this->mDisplay->define_sprite( SPRITE_MOON, sprite_moon_width, sprite_moon_height, sprite_moon_data );
 
   /* Initialise our forest. */
   for ( uint_fast8_t lIndex = 0; lIndex < TREES_MAX; lIndex++ )
@@ -121,9 +130,9 @@ const hsv_t *World::sky_colour( void )
   static hsv_t  l_colour;
 
   /* Work out the right kind of colour, based on the time of year. */
-  l_colour.h = 0.63f + (sin(this->mDayOfYear*3.14159f/180.0f)/10.0f);
+  l_colour.h = 0.63f - (sin(this->mTimeOfDay*3.14159f/1800.0f)/10.0f);
   l_colour.s = 0.65f;
-  l_colour.v = 0.35f;
+  l_colour.v = 0.35f + (sin(this->mTimeOfDay*3.14159f/1800.0f)/5.0f);
 
   /* Return a pointer to our static colour. */
   return &l_colour;
@@ -139,9 +148,9 @@ const hsv_t *World::sky_colour( void )
 void World::update( void )
 {
   /* Every frame, move time forward a day... */
-  if ( ++this->mDayOfYear > 365 )
+  if ( ++this->mTimeOfDay > 3600 )
   {
-    this->mDayOfYear = 1;
+    this->mTimeOfDay = 0;
   }
 
   /* Swap the current front buffer colours to the back. */
@@ -167,7 +176,7 @@ void World::update( void )
   }
 
   /* Update any trees we have; this is ~1 per second */
-  if ( this->mDayOfYear % 60 == 0 )
+  if ( this->mTimeOfDay % 60 == 0 )
   {
     for ( uint_fast8_t lIndex = 0; lIndex < TREES_MAX; lIndex++ )
     {
@@ -185,7 +194,7 @@ void World::update( void )
     }
 
     /* Occasionally spawn a new tree, if we have a free spot. */
-    if ( get_rand_32() % 30 == 0 )
+    if ( get_rand_32() % 15 == 0 )
     {
       /* See if there's a space in the forest. */
       for ( uint_fast8_t lIndex = 0; lIndex < TREES_MAX; lIndex++ )
@@ -200,6 +209,14 @@ void World::update( void )
       }
     }
   }
+
+  /* Figure out where the sun should be. */
+  this->mSunLocation.x = ( SCREEN_WIDTH / 2 ) - ( cos(this->mTimeOfDay*3.14159f/1800.0f) * SCREEN_WIDTH / 2 );
+  this->mSunLocation.y = GROUND_LEVEL - ( sin(this->mTimeOfDay*3.14159f/1800.0f) * GROUND_LEVEL );
+
+  /* And the moon (which basically follows the sun) */
+  this->mMoonLocation.x = ( SCREEN_WIDTH / 2 ) - ( cos(this->mTimeOfDay*3.14159f/1800.0f) * SCREEN_WIDTH / -2 );
+  this->mMoonLocation.y = GROUND_LEVEL - ( sin(this->mTimeOfDay*3.14159f/1800.0f) * GROUND_LEVEL * -1 );
 
   /* All done. */
   return;
@@ -228,8 +245,9 @@ void World::render( void )
        ( lCurrentColour->v != this->mGroundFG.v ) )
   {
     /* Redraw the ground in this colour. */
+    this->mGraphics->set_depth( 1 );
     lOffset = 0.0f;
-    for ( uint_fast16_t lRow = SCREEN_HEIGHT-GROUND_HEIGHT-GROUND_HEIGHT; lRow < SCREEN_HEIGHT; lRow++ )
+    for ( uint_fast16_t lRow = GROUND_LEVEL; lRow < SCREEN_HEIGHT; lRow++ )
     {
       this->mGraphics->set_pen( 
         pimoroni::RGB::from_hsv(
@@ -257,19 +275,15 @@ void World::render( void )
        ( lCurrentColour->v != this->mSkyFG.v ) )
   {
     /* Redraw the ground in this colour. */
-    lOffset = 0.0f;
-    for ( uint_fast16_t lRow = 0; lRow < SCREEN_HEIGHT-GROUND_HEIGHT-GROUND_HEIGHT; lRow++ )
-    {
-      this->mGraphics->set_pen( 
-        pimoroni::RGB::from_hsv(
-          lCurrentColour->h,
-          lCurrentColour->s - lOffset,
-          lCurrentColour->v
-        ).to_rgb555()
-      );
-      this->mGraphics->line( pimoroni::Point( 0, lRow ), pimoroni::Point( SCREEN_WIDTH, lRow ) );
-      lOffset += 0.0005f;
-    }
+    this->mGraphics->set_depth( 0 );
+    this->mGraphics->set_pen( 
+      pimoroni::RGB::from_hsv(
+        lCurrentColour->h,
+        lCurrentColour->s,
+        lCurrentColour->v
+      ).to_rgb555()
+    );
+    this->mGraphics->rectangle( pimoroni::Rect( 0, 0, SCREEN_WIDTH, GROUND_LEVEL ) );
 
     /* And remember that it's changed. */
     memcpy( &this->mSkyFG, lCurrentColour, sizeof( hsv_t ) );
@@ -284,12 +298,14 @@ void World::render( void )
   this->mGraphics->set_pen( 
     pimoroni::RGB::from_hsv( this->mSkyFG.h, this->mSkyFG.s, this->mSkyFG.v ).to_rgb555()
   );
+  this->mGraphics->set_depth( 0 );
   this->mGraphics->rectangle(
     pimoroni::Rect( this->mTitleOffset-1, 1, this->mTitleLength+2, 16 )
   );
 
   /* And then draw the text. */
   this->mGraphics->set_pen( this->mWhitePen );
+  this->mGraphics->set_depth( 1 );
   this->mGraphics->text( 
     this->mTitleText, 
     pimoroni::Point( this->mTitleOffset, 1 ),
@@ -299,15 +315,20 @@ void World::render( void )
   /* Trees, can be re-drawn in situ if we need to. */
   if ( this->mRedrawForestFG )
   {
+    this->mGraphics->set_depth( 1 );
     for ( uint_fast8_t lIndex = 0; lIndex < TREES_MAX; lIndex++ )
     {
       if ( this->mForest[lIndex] != nullptr )
       {
-        this->mForest[lIndex]->render( this->mDayOfYear );
+        this->mForest[lIndex]->render( this->mTimeOfDay );
       }
     }
     this->mRedrawForestFG = false;
   }
+
+  /* And put the sun and moon where it should be. */
+  this->mDisplay->set_sprite( SPRITE_SUN, SPRITE_SUN, this->mSunLocation );  
+  this->mDisplay->set_sprite( SPRITE_MOON, SPRITE_MOON, this->mMoonLocation );
 
   /* All done. */
   return;

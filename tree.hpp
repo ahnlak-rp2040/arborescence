@@ -37,7 +37,8 @@ private:
   branch_t       *alloc_branch( pimoroni::Point, uint_fast8_t );
   void            free_branch( branch_t * );
   void            grow_branch( branch_t *, uint_fast8_t );
-  void            render_branch( const branch_t *, const pimoroni::Point *, uint_fast8_t );
+  void            render_branch( const branch_t *, const pimoroni::Point *,
+                                 uint_fast16_t, uint_fast8_t );
 
 public:
                   Tree( pimoroni::PicoGraphics_PenDV_RGB555 * );

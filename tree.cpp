@@ -36,7 +36,7 @@ Tree::Tree( pimoroni::PicoGraphics_PenDV_RGB555 *pGraphics )
   this->mGraphics = pGraphics;
 
   /* So, the tree always originates on the ground, obviously. */
-  this->mOrigin.y = SCREEN_HEIGHT - GROUND_HEIGHT;
+  this->mOrigin.y = SCREEN_HEIGHT - ( GROUND_HEIGHT / 2 ) - ( get_rand_32() % GROUND_HEIGHT );
   this->mOrigin.x = 1 + ( get_rand_32() % (SCREEN_WIDTH-2) );
 
   /* The trunk should be pretty much vertical. */
@@ -166,8 +166,8 @@ branch_t *Tree::alloc_branch( pimoroni::Point pOrigin, uint_fast8_t pHeight )
 
   /* Set the end-point to something ... suitable. */
   lNewBranch->end_point.x = pOrigin.x + get_rand_32() % ( 60 / pHeight );
-  lNewBranch->end_point.y = pOrigin.y - ( SCREEN_HEIGHT / 12 ) / pHeight - 
-                            get_rand_32() % ( ( SCREEN_HEIGHT / 8 ) / pHeight );
+  lNewBranch->end_point.y = pOrigin.y - ( SCREEN_HEIGHT / 16 ) / pHeight - 
+                            get_rand_32() % ( ( SCREEN_HEIGHT / 4 ) / pHeight );
 
   /* And return the new branch. */
   return lNewBranch;
@@ -180,10 +180,10 @@ branch_t *Tree::alloc_branch( pimoroni::Point pOrigin, uint_fast8_t pHeight )
  *         called when we're sure something needs drawing.
  */
 
-void Tree::render( uint_fast16_t pDayOfYear )
+void Tree::render( uint_fast16_t pTimeOfDay )
 {
   /* Fairly simple this; we just draw lines until we run out... */
-  this->render_branch( &this->mTrunk, &this->mOrigin, 1 );
+  this->render_branch( &this->mTrunk, &this->mOrigin, pTimeOfDay, 1 );
 
   /* All done. */
   return;
@@ -194,10 +194,10 @@ void Tree::render( uint_fast16_t pDayOfYear )
  */
 
 void Tree::render_branch( const branch_t *pBranch, const pimoroni::Point *pOrigin,
-                          uint_fast8_t pHeight )
+                          uint_fast16_t pTimeOfDay, uint_fast8_t pHeight )
 {
   /* Fairly simple then - draw a line from the origin to the endpoint. */
-  this->mGraphics->set_pen( 114, 92, 66 );
+  this->mGraphics->set_pen( 92, 64, 51 );
 
   /* The thickness of the branch depends on the height. */
   if ( ( this->mHeight < 2 ) || ( pHeight > ( this->mHeight - 2 ) ) )
@@ -209,22 +209,10 @@ void Tree::render_branch( const branch_t *pBranch, const pimoroni::Point *pOrigi
     this->mGraphics->thick_line( *pOrigin, pBranch->end_point, this->mHeight - pHeight );
   }
 
-  /* If we're at a lower level, thicken up some of these lines. */
-  if ( ( this->mHeight >= 2 ) && ( pHeight < (this->mHeight - 2 ) ) )
-  {
-    this->mGraphics->line( *pOrigin+pimoroni::Point(1,0), 
-                           pBranch->end_point+pimoroni::Point(1,0) );
-  }
-  if ( ( this->mHeight >= 4 ) && ( pHeight < (this->mHeight - 4 ) ) )
-  {
-    this->mGraphics->line( *pOrigin-pimoroni::Point(1,0), 
-                           pBranch->end_point-pimoroni::Point(1,0) );
-  }
-
   /* If we're not at the bottom of the tree, add some leaves. */
   if ( pHeight >= 2 )
   {
-    this->mGraphics->set_pen( 68, 95+pHeight, 21 );
+    this->mGraphics->set_pen( 68, 95+(pHeight*3)+(sin(pTimeOfDay*3.14159f/1800.0f)*20), 21 );
     this->mGraphics->circle( pBranch->end_point, 20 - (pHeight*3) );
   }
 
@@ -233,7 +221,7 @@ void Tree::render_branch( const branch_t *pBranch, const pimoroni::Point *pOrigi
   {
     if ( pBranch->branches[lIndex] != nullptr )
     {
-      this->render_branch( pBranch->branches[lIndex], &pBranch->end_point, pHeight+1 );
+      this->render_branch( pBranch->branches[lIndex], &pBranch->end_point, pTimeOfDay, pHeight+1 );
     }
   }
 
