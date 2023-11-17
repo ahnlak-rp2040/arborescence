@@ -18,12 +18,16 @@
 #include "libraries/pico_graphics/pico_graphics_dv.hpp"
 
 #include "arborescence.hpp"
+#include "tree.hpp"
+#include "world.hpp"
+
 #include "sprite_sun.hpp"
 #include "sprite_moon.hpp"
 #include "sprite_cloudl.hpp"
 #include "sprite_cloudr.hpp"
-#include "tree.hpp"
-#include "world.hpp"
+#include "sprite_bird1.hpp"
+#include "sprite_bird2.hpp"
+#include "sprite_bird3.hpp"
 
 
 /* Functions. */
@@ -65,11 +69,17 @@ World::World( pimoroni::DVDisplay *pDisplay, pimoroni::PicoGraphics_PenDV_RGB555
   this->mDisplay->define_sprite( SPRITE_MOON, sprite_moon_width, sprite_moon_height, sprite_moon_data );
   this->mDisplay->define_sprite( SPRITE_CLOUDL, sprite_cloudl_width, sprite_cloudl_height, sprite_cloudl_data );
   this->mDisplay->define_sprite( SPRITE_CLOUDR, sprite_cloudr_width, sprite_cloudr_height, sprite_cloudr_data );
+  this->mDisplay->define_sprite( SPRITE_BIRD1, sprite_bird1_width, sprite_bird1_height, sprite_bird1_data );
+  this->mDisplay->define_sprite( SPRITE_BIRD2, sprite_bird2_width, sprite_bird2_height, sprite_bird2_data );
+  this->mDisplay->define_sprite( SPRITE_BIRD3, sprite_bird3_width, sprite_bird3_height, sprite_bird3_data );
   this->mDisplay->flip();
   this->mDisplay->define_sprite( SPRITE_SUN, sprite_sun_width, sprite_sun_height, sprite_sun_data );
   this->mDisplay->define_sprite( SPRITE_MOON, sprite_moon_width, sprite_moon_height, sprite_moon_data );
   this->mDisplay->define_sprite( SPRITE_CLOUDL, sprite_cloudl_width, sprite_cloudl_height, sprite_cloudl_data );
   this->mDisplay->define_sprite( SPRITE_CLOUDR, sprite_cloudr_width, sprite_cloudr_height, sprite_cloudr_data );
+  this->mDisplay->define_sprite( SPRITE_BIRD1, sprite_bird1_width, sprite_bird1_height, sprite_bird1_data );
+  this->mDisplay->define_sprite( SPRITE_BIRD2, sprite_bird2_width, sprite_bird2_height, sprite_bird2_data );
+  this->mDisplay->define_sprite( SPRITE_BIRD3, sprite_bird3_width, sprite_bird3_height, sprite_bird3_data );
 
   /* Initialise our forest. */
   for ( uint_fast8_t lIndex = 0; lIndex < TREES_MAX; lIndex++ )
@@ -80,7 +90,7 @@ World::World( pimoroni::DVDisplay *pDisplay, pimoroni::PicoGraphics_PenDV_RGB555
   /* And any other init stuff... */
   this->mRedrawSkyFG = this->mRedrawForestFG = true;
   this->mRedrawSkyBG = this->mRedrawForestBG = true;
-  this->mCloudActive = false;
+  this->mCloudActive = this->mBirdActive = false;
 
   /* All done. */
   return;
@@ -256,11 +266,50 @@ void World::update( void )
   else
   {
     /* If it's not active, a lowish chance to activate it. */
-    if ( get_rand_32() % 300 == 0 )
+    if ( get_rand_32() % 600 == 0 )
     {
       this->mCloudActive = true;
       this->mCloudLocation.x = -64;
       this->mCloudLocation.y = get_rand_32() % ( SCREEN_HEIGHT/2 );
+    }
+  }
+
+  /* Similarly with the bird... */
+  if ( this->mBirdActive )
+  {
+    /* Randomly drift up and down, but not too much... */
+    if ( get_rand_32() % 2 == 0 )
+    {
+      this->mBirdLocation.y -= get_rand_32() % 2;
+      if ( this->mBirdLocation.y < 0 )
+      {
+        this->mBirdLocation.y = 0;
+      }
+    }
+    else
+    {
+      this->mBirdLocation.y += get_rand_32() % 2;
+      if ( this->mBirdLocation.y > GROUND_LEVEL )
+      {
+        this->mBirdLocation.y = GROUND_LEVEL;
+      }
+    }
+
+    /* Drift to the left, until we drop off the end. */
+    this->mBirdLocation.x -= 1;
+    if ( this->mBirdLocation.x < -32 )
+    {
+      this->mBirdActive = false;
+    }
+  }
+  else
+  {
+    /* If it's not active, a lowish chance to activate it. */
+    if ( get_rand_32() % 900 == 0 )
+    {
+      this->mBirdActive = true;
+      this->mBirdLocation.x = SCREEN_WIDTH;
+      this->mBirdLocation.y = get_rand_32() % GROUND_LEVEL;
     }
   }
 
@@ -320,7 +369,7 @@ void World::render( void )
        ( lCurrentColour->s != this->mSkyFG.s ) || 
        ( lCurrentColour->v != this->mSkyFG.v ) )
   {
-    /* Redraw the ground in this colour. */
+    /* Redraw the sky in this colour. */
     this->mGraphics->set_depth( 0 );
     this->mGraphics->set_pen( 
       pimoroni::RGB::from_hsv(
@@ -330,6 +379,18 @@ void World::render( void )
       ).to_rgb555()
     );
     this->mGraphics->rectangle( pimoroni::Rect( 0, 0, SCREEN_WIDTH, GROUND_LEVEL ) );
+
+    /* If it's night time, drop in some random, but repeatedly random, stars. */
+    float lMoonHeight = 0.0f - sin(this->mTimeOfDay*3.14159f/1800.0f);
+    if ( lMoonHeight > 0.0f )
+    {
+      this->mGraphics->set_pen( 255.0f*lMoonHeight, 255.0f*lMoonHeight, 255.0f*lMoonHeight );
+      srand( 42 );
+      for ( uint_fast8_t lIndex = 0; lIndex < 100; lIndex++ )
+      {
+        this->mGraphics->set_pixel( pimoroni::Point( rand()%SCREEN_WIDTH, rand()%GROUND_LEVEL ) );
+      }
+    }
 
     /* And remember that it's changed. */
     memcpy( &this->mSkyFG, lCurrentColour, sizeof( hsv_t ) );
@@ -384,6 +445,15 @@ void World::render( void )
       SPRITE_CLOUDR, SPRITE_CLOUDR, 
       this->mCloudLocation + pimoroni::Point( 32, 0 )
     );
+  }
+
+  /* See also: bird. */
+  if ( this->mBirdActive )
+  {
+    /* Work out a suitable frame offset. */
+    uint_fast8_t lFrame = abs( ( this->mBirdLocation.x / 2 ) % 3 );
+    this->mDisplay->set_sprite( SPRITE_BIRD, SPRITE_BIRD+lFrame, this->mBirdLocation,
+                                pimoroni::DVDisplay::SpriteBlendMode::BLEND_NONE );
   }
 
   /* All done. */

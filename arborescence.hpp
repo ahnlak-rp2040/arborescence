@@ -26,6 +26,10 @@
 #define SPRITE_MOON   1
 #define SPRITE_CLOUDL 2
 #define SPRITE_CLOUDR 3
+#define SPRITE_BIRD   4
+#define SPRITE_BIRD1  4
+#define SPRITE_BIRD2  5
+#define SPRITE_BIRD3  6
 
 
 /* Structures. */

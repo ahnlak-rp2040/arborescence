@@ -200,13 +200,13 @@ void Tree::render_branch( const branch_t *pBranch, const pimoroni::Point *pOrigi
   this->mGraphics->set_pen( 92, 64, 51 );
 
   /* The thickness of the branch depends on the height. */
-  if ( ( this->mHeight < 2 ) || ( pHeight > ( this->mHeight - 2 ) ) )
+  if ( ( this->mHeight < 2 ) || ( pHeight > ( this->mHeight - 1 ) ) )
   {
     this->mGraphics->line( *pOrigin, pBranch->end_point );
   }
   else
   {
-    this->mGraphics->thick_line( *pOrigin, pBranch->end_point, this->mHeight - pHeight );
+    this->mGraphics->thick_line( *pOrigin, pBranch->end_point, ( this->mHeight - pHeight ) * 2 );
   }
 
   /* If we're not at the bottom of the tree, add some leaves. */

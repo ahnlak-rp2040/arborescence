@@ -31,10 +31,12 @@ private:
 
   pimoroni::Point                       mCloudLocation;
   bool                                  mCloudActive;
+  pimoroni::Point                       mBirdLocation;
+  bool                                  mBirdActive;
 
   int_fast16_t  mTitleLength;
   int_fast16_t  mTitleOffset;
-  const char   *mTitleText = "ARBORESCENCE";
+  const char   *mTitleText = "~ ARBORESCENCE ~ AHNLAK ~";
 
   uint_fast16_t mTimeOfDay;
 

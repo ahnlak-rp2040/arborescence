@@ -34,6 +34,7 @@ include(drivers/sdcard/sdcard)
 add_executable(${NAME}
     main.cpp tree.cpp world.cpp
     sprite_sun.cpp sprite_moon.cpp sprite_cloudl.cpp sprite_cloudr.cpp
+    sprite_bird1.cpp sprite_bird2.cpp sprite_bird3.cpp
 )
 
 # TODO: Don't forget to link the libraries you need!
